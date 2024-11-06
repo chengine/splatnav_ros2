@@ -1,0 +1,14 @@
+assets
+blender
+configs
+data
+imgs
+outputs
+renders
+traj
+*.png
+*.jpg
+*.json
+*.mp4
+*.gif
+*.npy
