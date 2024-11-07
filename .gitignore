@@ -12,3 +12,7 @@ traj
 *.mp4
 *.gif
 *.npy
+*.MOV
+*.mp4
+*.mov
+*.pdf
