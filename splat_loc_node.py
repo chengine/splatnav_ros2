@@ -35,36 +35,36 @@ class SplatLocNode(Node):
         use_compressed_image: bool = True,
         drone_config=None,
         colmap2mocap=None,
-        result_dir: Path = './results',
+        result_dir: Path = "./results",
         timestart: str = None,
         enable_UKF: bool = False,
-        device: torch.device = torch.device("cuda")
+        device: torch.device = torch.device("cuda"),
     ):
         super().__init__(node_name="splatlocnode")
         # map name
         self.map_name = "camera_link"
 
         self.result_dir = result_dir / f"{timestart}_{TRIAL_IDX}"
-            
+
         # create directory, if needed
         Path(self.result_dir).parent.mkdir(parents=True, exist_ok=True)
-        
+
         # device
         self.device = device
 
         # slam mode
-        self.slam_method = 'modal'
+        self.slam_method = "modal"
 
         # load the Gaussian Splat
-        self.gsplat = GaussianSplat(config_path=config_path,
-                                    dataset_mode="train",
-                                    device=self.device)
+        self.gsplat = GaussianSplat(
+            config_path=config_path, dataset_mode="train", device=self.device
+        )
 
         # applied to data
         self.T_data2gsplat = torch.eye(4).cuda()
-        self.T_data2gsplat[
-            :3, :
-        ] = self.gsplat.pipeline.datamanager.train_dataparser_outputs.dataparser_transform
+        self.T_data2gsplat[:3, :] = (
+            self.gsplat.pipeline.datamanager.train_dataparser_outputs.dataparser_transform
+        )
         self.s_data2gsplat = (
             self.gsplat.pipeline.datamanager.train_dataparser_outputs.dataparser_scale
         )
@@ -79,10 +79,20 @@ class SplatLocNode(Node):
         self.update_camera_intrinsics()
 
         # distortion
-        self.dparams = torch.tensor([drone_config["k1"], drone_config["k2"], 
-                                     drone_config["k3"], drone_config["p1"], 
-                                     drone_config["p2"]]).float().to(self.device)
-        
+        self.dparams = (
+            torch.tensor(
+                [
+                    drone_config["k1"],
+                    drone_config["k2"],
+                    drone_config["k3"],
+                    drone_config["p1"],
+                    drone_config["p2"],
+                ]
+            )
+            .float()
+            .to(self.device)
+        )
+
         # option to undistort
         self.undistort_images = True
 
@@ -94,7 +104,11 @@ class SplatLocNode(Node):
         if drone_config is not None:
             # camera-to-body-frame
             # self.T_handeye = torch.linalg.inv(torch.from_numpy(np.array(drone_config["pose_to_camera"]))).to(self.device).float()
-            self.T_handeye = torch.from_numpy(np.array(drone_config["pose_to_camera"])).to(self.device).float()
+            self.T_handeye = (
+                torch.from_numpy(np.array(drone_config["pose_to_camera"]))
+                .to(self.device)
+                .float()
+            )
             # self.T_handeye[:3, :3] = torch.from_numpy(np.array(handeye["R"]))
             # self.T_handeye[:3, 3] = torch.from_numpy(np.array(handeye["t"])).squeeze()
 
@@ -161,10 +175,8 @@ class SplatLocNode(Node):
 
         # subscriber to the ground-truth pose
         self.gt_pose_subscription = Subscriber(
-            self, PoseStamped, "/republished_pose"
-            , qos_profile=qos_profile_incoming
+            self, PoseStamped, "/republished_pose", qos_profile=qos_profile_incoming
         )
-
 
         # self.odometry_subscriber = self.create_subscription(
         #     VehicleOdometry,
@@ -265,11 +277,9 @@ class SplatLocNode(Node):
         fy = self.drone_config["fy"]
         cx = self.drone_config["cx"]
         cy = self.drone_config["cy"]
-        
+
         # cmaera intrinsics matrix
-        self.cam_K = np.array([[fx, 0,  cx],
-                               [0,  fy, cy],
-                               [0,  0,  1]])
+        self.cam_K = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]])
         self.cam_K = torch.from_numpy(self.cam_K).to(self.device).float()
 
     def update_RGB_image(self, msg):
@@ -291,9 +301,10 @@ class SplatLocNode(Node):
             # img_cv = self.opencv_bridge.imgmsg_to_cv2(msg, msg.encoding)
             # img_tensor = torch.from_numpy(im_cv).to(dtype=torch.float32) / 255.0
 
-
         if self.undistort_images:
-            im_cv = cv2.undistort(im_cv, self.cam_K.cpu().numpy(), self.dparams.cpu().numpy(), None, None)
+            im_cv = cv2.undistort(
+                im_cv, self.cam_K.cpu().numpy(), self.dparams.cpu().numpy(), None, None
+            )
 
         # Filter motion blur
         if self.blur_threshold > 0:
@@ -307,7 +318,7 @@ class SplatLocNode(Node):
         # cv2.imshow("frame", im_cv)
         # import matplotlib.pyplot as plt
         # img = (img_tensor.cpu().numpy() * 255).astype(np.uint8)
-        
+
         # plt.figure()
         # plt.imshow(img)
         # plt.show()
@@ -372,9 +383,9 @@ class SplatLocNode(Node):
 
         if self.enable_UKF:
             # Set the prior distribution of the UKF
-            self.splat_loc.set_prior_distribution(mu=init_guess,
-                                                sigma=torch.eye(6, device=self.device))
-
+            self.splat_loc.set_prior_distribution(
+                mu=init_guess, sigma=torch.eye(6, device=self.device)
+            )
 
     def estimate_pose(self):
         # estimate the pose
@@ -391,25 +402,25 @@ class SplatLocNode(Node):
             if self.enable_UKF:
                 # estimate the pose (UKF)
                 # try:
-                    # computation time
-                    start_time = time.perf_counter()
+                # computation time
+                start_time = time.perf_counter()
 
-                    est_pose_ukf = self.splat_loc.estimate_ukf(
-                        init_guess=None,
-                        cam_rgb=self.cam_rgb.to(self.device),
-                        cam_K=self.cam_K,
-                    )
+                est_pose_ukf = self.splat_loc.estimate_ukf(
+                    init_guess=None,
+                    cam_rgb=self.cam_rgb.to(self.device),
+                    cam_K=self.cam_K,
+                )
 
-                    # total computation time (for this iteration)
-                    self.computation_time_ukf.append(time.perf_counter() - start_time)
+                # total computation time (for this iteration)
+                self.computation_time_ukf.append(time.perf_counter() - start_time)
 
-                    # cache the success flag
-                    self.cache_success_flag_ukf.append(1)
-                # except:
-                #     print("Failed UKF!")
-                #     # cache the success flag
-                #     self.cache_success_flag_ukf.append(0)
-            
+                # cache the success flag
+                self.cache_success_flag_ukf.append(1)
+            # except:
+            #     print("Failed UKF!")
+            #     # cache the success flag
+            #     self.cache_success_flag_ukf.append(0)
+
             # estimate the pose (PnP-RANSAC only)
             try:
                 # computation time
@@ -525,9 +536,7 @@ class SplatLocNode(Node):
         )
 
         # pose error
-        np.save(
-            f"{save_dir}/pose_error.npy", self.pose_error
-        )
+        np.save(f"{save_dir}/pose_error.npy", self.pose_error)
 
         if self.enable_UKF:
             # computation time
@@ -545,9 +554,7 @@ class SplatLocNode(Node):
             )
 
             # pose error
-            np.save(
-                f"{save_dir}/pose_error_ukf.npy", self.pose_error
-            )
+            np.save(f"{save_dir}/pose_error_ukf.npy", self.pose_error)
 
 
 if __name__ == "__main__":
@@ -558,11 +565,12 @@ if __name__ == "__main__":
     # config path
     # config_path = Path(f"./data/Flightroom hard/outputs/flightroom_colmap/gemsplat/2024-04-16_002525/config.yml")
     config_path = Path(
-        "outputs/configs/ros-depth-splatfacto/2024-10-30_140655/config.yml"
+        # "outputs/configs/ros-depth-splatfacto/2024-10-30_140655/config.yml"
+        "/home/ola/Research/radiance_fields/splatnav_ros2/rosbags/ros/traj_cl_0/outputs/configs/ros-depth-splatfacto/2024-10-30_140655/config.yml"
     )
 
     # drone info
-    drone_config_path = "configs/modal.json"
+    drone_config_path = "/home/ola/Research/radiance_fields/splatnav_ros2/rosbags/ros/traj_cl_0/configs/modal.json"  # "configs/modal.json"
 
     if drone_config_path is not None:
         with open(drone_config_path, "r") as f:
@@ -576,7 +584,7 @@ if __name__ == "__main__":
     #         handeye_dict = json.load(f)
 
     # COLMAP to Mocap
-    colmap2mocap_transforms_path = None # "transforms/colmap2mocap.json"
+    colmap2mocap_transforms_path = None  # "transforms/colmap2mocap.json"
 
     if colmap2mocap_transforms_path is not None:
         with open(colmap2mocap_transforms_path, "r") as f:
@@ -586,16 +594,20 @@ if __name__ == "__main__":
 
     # result directory
     goal_queries = ["red cup", "water gallon", "keyboard", "teddy bear"]
-    
+
     # index for the goal query
     goal_idx = 0
 
+    # index for the run
+    run_index = 3
+
     # result directory
-    result_dir = Path(f"results/{goal_queries[goal_idx]}")
+    # result_dir = Path(f"results/{goal_queries[goal_idx]}")
+    result_dir = Path(f"results/closed_loop_{run_index}")
 
     # enable UKF
-    enable_UKF = False # True
-    
+    enable_UKF = False  # True
+
     # Pose Estimator
     splatnavnode = SplatLocNode(
         config_path=config_path,
@@ -604,7 +616,7 @@ if __name__ == "__main__":
         colmap2mocap=colmap2mocap_dict,
         result_dir=result_dir,
         timestart=timestart,
-        enable_UKF=enable_UKF
+        enable_UKF=enable_UKF,
     )
 
     # Run

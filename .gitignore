@@ -1,3 +1,6 @@
+**/__pycache__
+**/process_results
+**/rosbags
 assets
 blender
 configs
@@ -6,13 +9,18 @@ imgs
 outputs
 renders
 traj
+*.pyc
 *.png
 *.jpg
+*.jpeg
 *.json
 *.mp4
 *.gif
 *.npy
+<<<<<<< Updated upstream
 *.MOV
 *.mp4
 *.mov
 *.pdf
+=======
+>>>>>>> Stashed changes
