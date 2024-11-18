@@ -18,5 +18,5 @@ def make_gif(frame_folder):
     # Make gif
     # frames[0].save(f"{frame_folder}/render.gif", save_all=True, append_images=frames[1:], duration=100, loop=0)
     
-make_gif("renders/mesh_trimesh")
+make_gif("renders/mesh_simple")
 # %%
